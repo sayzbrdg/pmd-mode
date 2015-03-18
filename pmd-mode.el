@@ -28,23 +28,30 @@
 
 (require 'generic-x)
 
+
+;; generic mode
+;;
 (define-generic-mode pmd-mode
-  '(";")
-  nil
+  '(";")                                ; コメント開始文字列
+  nil                                   ; キーワード
+  ;; font-lock の設定
   '(("^#[a-zA-Z0-9]+" . font-lock-builtin-face)
     ("^R[0-9]+" . font-lock-constant-face)
     ("^[a-zA-Z]+" . font-lock-function-name-face)
-    ("![a-zA-Z]" . font-lock-variable-name-face)
+    ("![a-zA-Z]" . font-lock-variable-name-face) ; PMD3.3は変数名が一文字
     ("\\\\[bschti]p?" . font-lock-function-name-face)
     ("\\\\v[bschti][+-]?" . font-lock-keyword-face)
     ("\\\\V[+-]?" . font-lock-keyword-face)
     ("\\\\[lmr][bschti]" . font-lock-type-face)
     ("[][:]" . font-lock-warning-face)
     )
-  '("\\.mml$")
-  '(pmd-mode-setup)
+  '("\\.mml$")                          ; モードを有効にするファイル名
+  '(pmd-mode-setup)                     ; モード開始時に呼ばれる関数
   "P.M.D. mode")
 
+
+;; key map
+;;
 (defvar pmd-mode-map
   (let ((map (make-sparse-keymap)))
     (define-key map "\C-c\C-c" 'pmd-save-and-compile-buffer)
@@ -52,6 +59,9 @@
     map)
   "pmd-modeのキーマップ")
 
+
+;; variables
+;;
 (defconst pmd-default-file-extension ".M"
   "PMDデータファイルのデフォルト拡張子")
 (defconst pmd-compilation-buffer-name "*pmd-compilation*"
@@ -77,10 +87,19 @@
   :type
   '(boolean))
 
+
+;; functions
+;;
 (defun pmd-mode-setup ()
   (use-local-map pmd-mode-map))
 
+
 (defun pmd-search-filename (&optional buffer)
+  "バッファから#filenameを検索してコンパイル後のファイル名として返す。
+#filenameが見つからない場合にはバッファファイル名の拡張子を
+'pmd-default-file-extension'に置き換えたものを返す。
+バッファがファイルではない場合は nil を返す。
+BUFFER が指定されなければ、カレントバッファを対象とする"
   (let ((basefilename (buffer-file-name buffer))
         (defined-name
           (with-current-buffer (or buffer (current-buffer))
@@ -90,15 +109,24 @@
                 (match-string-no-properties 1))))))
     (cond ((eq basefilename nil)
            nil)
+          ;; #filenameが"."で始まるパターンは拡張子のみ置き換える
           ((and defined-name (string-match "^\\." defined-name))
            (concat (file-name-sans-extension basefilename) defined-name))
+          ;; #filenameが"."で始まらないパターンはファイル名全体を置き換える
           (defined-name
             (concat (file-name-directory basefilename) defined-name))
           (t
            (concat (file-name-sans-extension basefilename)
                    pmd-default-file-extension)))))
 
+
 (defun pmd-play-file (&optional file)
+  "FILEで指定されるコンパイル後のPMDデータを再生する。
+FILEが指定されなければ、カレントバッファから推測される
+ファイル名を使用する。'pmd-player-program-name'が設定されて
+いなかったり、FILEが指定されず、カレントバッファがファイル
+ではない場合はエラーになる。コンパイル後のPMDデータファイルが
+存在するかのチェックは行わない。"
   (interactive)
   (catch 'error
     (let ((filename (or file (pmd-search-filename))))
@@ -108,10 +136,18 @@
       (unless filename
         (error "%s is not a file buffer." (buffer-name))
         (throw 'error nil))
+      ;; 起動した再生プロセスの終了を待つと、再生中の操作ができなくなる
+      ;; ので待たない
       (apply 'call-process pmd-player-program-name nil 0 nil
              (append pmd-player-program-options `(,filename))))))
 
+
 (defun pmd-compile-buffer-file (&optional buffer)
+  "バッファのファイルを'pmd-compile-program-name'でコンパイルする。
+'pmd-compile-program-name'が設定されていなかったり、バッファ
+がファイルではない場合はエラーになる。事前にバッファの保存は
+行わない。 BUFFER が指定されなければ、カレントバッファを
+対象とする"
   (catch 'error
     (let ((filename (buffer-file-name buffer))
           (outbuffer (get-buffer-create pmd-compilation-buffer-name)))
@@ -123,10 +159,13 @@
         (throw 'error nil))
       (when (one-window-p)
         (split-window-vertically))
+      ;; コンパイル結果出力先のバッファがウィンドウにあればそれを利用
+      ;; 無ければ next-window を使用
       (set-window-buffer (or (get-buffer-window outbuffer)
                              (next-window))
                          outbuffer)
       (with-current-buffer outbuffer
+        ;; コンパイル結果出力先のバッファは常に read only に
         (unwind-protect
             (progn
               (setq buffer-read-only nil)
@@ -135,7 +174,12 @@
                      (append pmd-compile-program-options `(,filename))))
           (setq buffer-read-only t))))))
 
+
 (defun pmd-save-and-compile-buffer (&optional buffer)
+  "バッファを保存しコンパイルする。指定があればその後再生する。
+'pmd-compile-program-name'が設定されていなかったり、バッファ
+がファイルではない場合はエラーになる。
+BUFFER が指定されなければ、カレントバッファを対象とする"
   (interactive)
   (catch 'error
     (let* ((targetbuffer (or buffer (current-buffer)))
@@ -148,9 +192,10 @@
         (throw 'error nil))
       (with-current-buffer targetbuffer
         (save-buffer))
-      (when (and (= (pmd-compile-buffer-file buffer) 0)
+      (when (and (= (pmd-compile-buffer-file buffer) 0) ; 異常時は継続しない
                  pmd-play-after-compile)
 		(pmd-play-file (pmd-search-filename buffer))))))
+
 
 (provide 'pmd-mode)
 
