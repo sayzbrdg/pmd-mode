@@ -114,7 +114,7 @@ BUFFER が指定されなければ、カレントバッファを対象とする"
            (concat (file-name-sans-extension basefilename) defined-name))
           ;; #filenameが"."で始まらないパターンはファイル名全体を置き換える
           (defined-name
-            (concat (file-name-directory basefilename) defined-name))
+			defined-name)
           (t
            (concat (file-name-sans-extension basefilename)
                    pmd-default-file-extension)))))
