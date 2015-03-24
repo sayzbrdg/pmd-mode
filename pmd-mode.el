@@ -139,7 +139,8 @@ FILEが指定されなければ、カレントバッファから推測される
       ;; 起動した再生プロセスの終了を待つと、再生中の操作ができなくなる
       ;; ので待たない
       (apply 'call-process pmd-player-program-name nil 0 nil
-             (append pmd-player-program-options `(,filename))))))
+             (append pmd-player-program-options
+                     `(,(convert-standard-filename filename)))))))
 
 
 (defun pmd-compile-buffer-file (&optional buffer)
@@ -171,7 +172,8 @@ FILEが指定されなければ、カレントバッファから推測される
               (setq buffer-read-only nil)
               (erase-buffer)
               (apply 'call-process pmd-compile-program-name nil outbuffer nil
-                     (append pmd-compile-program-options `(,filename))))
+                     (append pmd-compile-program-options
+                             `(,(convert-standard-filename filename)))))
           (setq buffer-read-only t))))))
 
 
@@ -194,7 +196,7 @@ BUFFER が指定されなければ、カレントバッファを対象とする"
         (save-buffer))
       (when (and (= (pmd-compile-buffer-file buffer) 0) ; 異常時は継続しない
                  pmd-play-after-compile)
-		(pmd-play-file (pmd-search-filename buffer))))))
+        (pmd-play-file (pmd-search-filename buffer))))))
 
 
 (provide 'pmd-mode)

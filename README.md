@@ -73,11 +73,3 @@ nil以外を指定すると、MMLコンパイル後に自動で pmd-player-progr
     (setq pmd-player-program-name "fmpmd")
     (setq pmd-player-program-options nil)
     (setq pmd-play-after-compile t)
-
-# 既知の不具合
-パスの区切り文字を **\\(バックスラッシュ|円マーク)** ではなく **/(スラッシュ)**
-でプログラムに渡します。この影響でFMPMD2000が正常終了しない等の不具合が
-あることがわかっています。
-
-エクスプローラーからファイルをFMPMD2000にドラッグアンドドロップで再生
-しなおせば回避できますが、嬉しくない問題ですので修正予定です。
