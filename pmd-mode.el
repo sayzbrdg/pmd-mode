@@ -70,6 +70,9 @@
 (defcustom pmd-mode-hook nil
   "pmd-modeのフック"
   :type '(hook))
+(defcustom pmd-after-compile-hook nil
+  "コンパイルコマンド正常終了時のフック"
+  :type '(hook))
 (defcustom pmd-compile-program-name "MC.EXE"
   "PMDコンパイラのプログラム名"
   :type '(string))
@@ -165,16 +168,23 @@ FILEが指定されなければ、カレントバッファから推測される
       (set-window-buffer (or (get-buffer-window outbuffer)
                              (next-window))
                          outbuffer)
-      (with-current-buffer outbuffer
-        ;; コンパイル結果出力先のバッファは常に read only に
-        (unwind-protect
-            (progn
-              (setq buffer-read-only nil)
-              (erase-buffer)
-              (apply 'call-process pmd-compile-program-name nil outbuffer nil
-                     (append pmd-compile-program-options
-                             `(,(convert-standard-filename filename)))))
-          (setq buffer-read-only t))))))
+      (if (= 0 (with-current-buffer outbuffer
+                 ;; コンパイル結果出力先のバッファは常に read only に
+                 (unwind-protect
+                     (progn
+                       (setq buffer-read-only nil)
+                       (erase-buffer)
+                       (apply 'call-process pmd-compile-program-name nil
+                              outbuffer nil
+                              (append pmd-compile-program-options
+                                      `(,(convert-standard-filename filename)))
+                              ))
+                   (setq buffer-read-only t))))
+          ;; コンパイル正常終了時はフックを実行
+          (progn
+            (run-hooks 'pmd-after-compile-hook)
+            t)
+        nil))))
 
 
 (defun pmd-save-and-compile-buffer (&optional buffer)
@@ -194,7 +204,7 @@ BUFFER が指定されなければ、カレントバッファを対象とする"
         (throw 'error nil))
       (with-current-buffer targetbuffer
         (save-buffer))
-      (when (and (= (pmd-compile-buffer-file buffer) 0) ; 異常時は継続しない
+      (when (and (pmd-compile-buffer-file buffer) ; 異常時は継続しない
                  pmd-play-after-compile)
         (pmd-play-file (pmd-search-filename buffer))))))
 

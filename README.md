@@ -38,6 +38,9 @@ pmd-mode用に2つのキーバインドが設定されています。
 ### pmd-mode-hook
 pmd-mode起動時に実行されるフック変数です。
 
+### pmd-after-compile-hook
+MMLコンパイルが正常終了したときに実行されるフック変数です。
+
 ### pmd-compile-program-name
 MMLのコンパイルに使用するプログラム名です。オプションは次のカスタマイズ
 変数で設定します。
