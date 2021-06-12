@@ -87,8 +87,10 @@
   :type '(repeat string))
 (defcustom pmd-play-after-compile nil
   "コンパイル後に再生する場合はtを指定"
-  :type
-  '(boolean))
+  :type '(boolean))
+(defcustom pmd-normalize-filename-function 'convert-standard-filename
+  "ファイル名の正規化関数"
+  :type '(restricted-sexp))
 
 
 ;; functions
@@ -143,7 +145,7 @@ FILEが指定されなければ、カレントバッファから推測される
       ;; ので待たない
       (apply 'call-process pmd-player-program-name nil 0 nil
              (append pmd-player-program-options
-                     `(,(convert-standard-filename filename)))))))
+                     `(,(funcall pmd-normalize-filename-function filename)))))))
 
 
 (defun pmd-compile-buffer-file (&optional buffer)
@@ -170,16 +172,17 @@ FILEが指定されなければ、カレントバッファから推測される
                          outbuffer)
       (if (= 0 (with-current-buffer outbuffer
                  ;; コンパイル結果出力先のバッファは常に read only に
-                 (unwind-protect
-                     (progn
-                       (setq buffer-read-only nil)
-                       (erase-buffer)
-                       (apply 'call-process pmd-compile-program-name nil
-                              outbuffer nil
-                              (append pmd-compile-program-options
-                                      `(,(convert-standard-filename filename)))
-                              ))
-                   (setq buffer-read-only t))))
+                 (let ((coding-system-for-read 'cp932-dos))
+                   (unwind-protect
+                       (progn
+                         (setq buffer-read-only nil)
+                         (erase-buffer)
+                         (apply 'call-process pmd-compile-program-name nil
+                                outbuffer nil
+                                (append pmd-compile-program-options
+                                        `(,(funcall pmd-normalize-filename-function filename)))
+                                ))
+                     (setq buffer-read-only t)))))
           ;; コンパイル正常終了時はフックを実行
           (progn
             (run-hooks 'pmd-after-compile-hook)
